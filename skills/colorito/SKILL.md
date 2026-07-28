@@ -79,7 +79,11 @@ Anyone with {cmd:lambda:GetFunctionConfiguration} reads them in {bad:plaintext}.
 ```
 
 Types: `warn`, `bad`, `ok`, `info`, `note`, `tip`, `key`. The title is optional; omit it and
-the type's default label is used. Escape a literal brace with `\{`.
+the type's default label is used.
+
+Only real style names are treated as spans, so shell syntax survives verbatim —
+`${ssm:/prod/key}` and `${VAR:-default}` need no escaping. Use `\{` to force a literal
+brace where you do want one.
 
 ## Restraint
 

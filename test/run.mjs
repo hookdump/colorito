@@ -49,9 +49,19 @@ test('NO_COLOR env is honored', () => {
   assert.ok(!out.includes(ESC));
 });
 
-test('unknown style names keep their text', () => {
+test('unknown style names are left verbatim, not parsed as spans', () => {
   const out = run('{nosuchstyle:kept}\n', ['--no-color']);
-  assert.match(out, /kept/);
+  assert.match(out, /\{nosuchstyle:kept\}/);
+});
+
+test('shell syntax inside a span survives', () => {
+  const out = run('{cmd:${ssm:/path/to/key}}\n', ['--no-color']);
+  assert.match(out, /\$\{ssm:\/path\/to\/key\}/);
+});
+
+test('a stray brace in prose is not swallowed', () => {
+  const out = run('use ${VAR:-default} in the script\n', ['--no-color']);
+  assert.match(out, /\$\{VAR:-default\}/);
 });
 
 test('unterminated span is emitted literally', () => {

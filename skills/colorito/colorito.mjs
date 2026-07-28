@@ -130,6 +130,16 @@ function paint(text, styles) {
 
 const SPAN_OPEN = /^\{([a-zA-Z][\w.]*):/;
 
+// `{foo:...}` is only a span if every dotted part names a real style. Otherwise
+// it is ordinary text that happens to contain a brace — `${ssm:}` in a shell
+// snippet, say — and must survive verbatim rather than being silently eaten.
+function isStyleName(names) {
+  return names.every((raw) => {
+    const n = raw.toLowerCase();
+    return MODIFIERS[n] !== undefined || COLORS[n] !== undefined || SEMANTIC[n] !== undefined;
+  });
+}
+
 function findClose(s, from) {
   let depth = 1;
   for (let i = from; i < s.length; i++) {
@@ -158,7 +168,7 @@ function parseInline(s, styles = []) {
     if (s[i] === '\\' && i + 1 < s.length) { buf += s[i + 1]; i += 2; continue; }
 
     const span = SPAN_OPEN.exec(rest);
-    if (span) {
+    if (span && isStyleName(span[1].split('.'))) {
       const start = i + span[0].length;
       const close = findClose(s, start);
       if (close !== -1) {

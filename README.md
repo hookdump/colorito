@@ -81,8 +81,9 @@ Anyone with {cmd:lambda:GetFunctionConfiguration} reads them in {bad:plaintext}.
 
 Types: `warn`, `bad`, `ok`, `info`, `note`, `tip`, `key`.
 
-Escape a literal brace with `\{`. Unknown style names degrade to plain text rather than
-erroring. Unterminated spans are printed literally.
+`{...}` is only treated as a span when the name is a real style, so shell syntax passes
+through untouched — `${ssm:/prod/key}` and `${VAR:-default}` render as written. Escape a
+literal brace with `\{` if you need to force it. Unterminated spans print literally.
 
 ## Options
 
