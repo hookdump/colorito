@@ -1,0 +1,42 @@
+# Deploy review
+
+Three of the twelve checks need a decision before this ships. Everything else is
+{ok:clear}.
+
+## Blockers
+
+:::bad Migration is not reversible
+`0042_drop_legacy_users.sql` has no down step. If the rollout is rolled back, the
+table is {bad:gone}. Add a down migration or gate it behind a second deploy.
+:::
+
+:::warn Config drift
+{num:10} of the {num:17} keys in the deploy secret are operational flags, not
+secrets. They live outside version control, so {muted:"who changed this, and
+when?"} has no answer.
+:::
+
+## Checks
+
+| Check | Result | Note |
+| --- | --- | --- |
+| unit tests | {ok:pass} | {muted:1,204 in 38s} |
+| integration | {ok:pass} | {muted:skipped 2 flaky} |
+| bundle size | {warn:+18%} | vendored a date library |
+| migration | {bad:fail} | no down step |
+
+## What changed
+
+```diff
++ flags moved into version control
++ OIDC role, branch-scoped
+- static access keys in CI
+```
+
+## Suggested order
+
+1. Add the down migration — {muted:blocking, ~20 min}
+2. Split flags out of the secret — {muted:cheap, high value}
+3. Revisit the bundle after ship — {muted:not urgent}
+
+> Ship {num:1} and {num:2} together; {num:3} can wait a week.

@@ -1,0 +1,39 @@
+{
+  "name": "colorito",
+  "version": "0.1.0",
+  "description": "Colored terminal output for Claude Code answers — a small markup language and a zero-dependency ANSI renderer, packaged as an on-demand skill.",
+  "type": "module",
+  "bin": {
+    "colorito": "bin/colorito.mjs"
+  },
+  "files": [
+    "bin",
+    "skills"
+  ],
+  "scripts": {
+    "test": "node --test test/run.mjs",
+    "demo": "node bin/colorito.mjs --demo"
+  },
+  "keywords": [
+    "claude-code",
+    "agent-skill",
+    "ansi",
+    "terminal",
+    "cli",
+    "markdown",
+    "color"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hookdump/colorito.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hookdump/colorito/issues"
+  },
+  "homepage": "https://github.com/hookdump/colorito#readme",
+  "author": "Ignacio Freiberg",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
