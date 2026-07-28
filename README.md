@@ -44,12 +44,14 @@ Or drop `skills/colorito/` into `~/.claude/skills/`. Then just ask:
 
 > make that pretty
 
-As a plain CLI, no Claude involved:
+As a plain CLI, no Claude involved. Not on npm yet, so install from GitHub:
 
 ```bash
-npx colorito file.co
-echo '{ok:hello}' | npx colorito
-npx colorito --demo
+npx github:hookdump/colorito --demo
+npx github:hookdump/colorito file.co
+echo '{ok:hello}' | npx github:hookdump/colorito
+
+git clone https://github.com/hookdump/colorito && node colorito/bin/colorito.mjs --demo
 ```
 
 ## The markup
