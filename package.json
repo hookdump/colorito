@@ -1,27 +1,28 @@
 {
   "name": "colorito",
-  "version": "0.1.0",
-  "description": "Colored terminal output for Claude Code answers — a small markup language and a zero-dependency ANSI renderer, packaged as an on-demand skill.",
+  "version": "0.2.0",
+  "description": "Render an agent answer as a styled HTML page where color tracks concepts, not emphasis. Zero dependencies, packaged as an on-demand skill.",
   "type": "module",
   "bin": {
     "colorito": "bin/colorito.mjs"
   },
   "files": [
     "bin",
-    "skills"
+    "skills",
+    "examples"
   ],
   "scripts": {
     "test": "node --test test/run.mjs",
-    "demo": "node bin/colorito.mjs --demo"
+    "demo": "node bin/colorito.mjs --demo --open"
   },
   "keywords": [
     "claude-code",
     "agent-skill",
-    "ansi",
-    "terminal",
-    "cli",
+    "html",
     "markdown",
-    "color"
+    "concept-highlighting",
+    "documentation",
+    "cli"
   ],
   "repository": {
     "type": "git",

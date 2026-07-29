@@ -1,126 +1,110 @@
 # colorito
 
-Colored terminal output for Claude Code answers, on demand.
+Turn a dense agent answer into a styled HTML page — where color tracks **concepts**, not
+emphasis.
 
-Claude Code renders assistant text as markdown. That gives you bold, italic, and inline
-code — but no control over color. Long analytical answers come out as an undifferentiated
-wall of grey, where the one line that matters looks exactly like the forty that don't.
+Long analytical answers arrive as a wall of uniform text. The usual fix is to color
+emphasis: red for bad, green for good, bold for important. That decays quickly, because
+emphasis is subjective and gets applied differently in every paragraph.
 
-colorito is two pieces that solve that together:
-
-1. **A markup language** — plain markdown plus semantic color spans, `{warn:like this}`.
-2. **A renderer** — a zero-dependency Node script that turns the markup into ANSI and
-   prints it, so the color arrives as *command output* rather than as assistant text.
-
-Wrapped in a skill, so it only happens when you ask for it.
+colorito does something narrower and more useful. You declare the two to four ideas a
+document is actually about, along with the words that refer to each one:
 
 ```
-                         ┌──────────────────────────┐
-you: "make that pretty"  │  # Findings              │
-        │                │  {bad:3 blockers} found  │  markup Claude writes
-        ▼                └────────────┬─────────────┘
-   skill loads                        │ heredoc
-                                      ▼
-                            colorito.mjs ──▶ ANSI ──▶ your terminal
+@secrets: secret, secrets, plaintext, credentials, MONGO_URI
+@flags:   flag, flags, feature flag, sendOrSkipSms
 ```
 
-## Why not just emit ANSI directly?
+Every mention of those words is then tinted the same hue across the whole page, with no
+further markup. The reader learns the mapping once from the legend, and can then trace an
+idea through ten paragraphs at a glance — which sections discuss it, where two concepts
+collide, which one is really carrying the argument.
 
-Because assistant text goes through a markdown renderer that Claude doesn't control, and
-escape codes in that text are not reliably passed through to the terminal. Command output
-is. Routing through a script makes the behavior predictable instead of hopeful, and it
-gives you a real color vocabulary — 18 hues, modifiers, callouts, tables — rather than the
-four or five constructs the markdown theme happens to colorize.
+![A rendered page with two concepts highlighted throughout the prose](docs/screenshot.png)
 
 ## Install
 
-As a skill (recommended):
+As a skill:
 
 ```bash
 npx skills add hookdump/colorito@colorito
 ```
 
-Or drop `skills/colorito/` into `~/.claude/skills/`. Then just ask:
+Then ask for it by name — *"make that pretty"* — and a page opens in your browser.
 
-> make that pretty
-
-As a plain CLI, no Claude involved. Not on npm yet, so install from GitHub:
+As a plain CLI (not on npm yet, so install from GitHub):
 
 ```bash
-npx github:hookdump/colorito --demo
-npx github:hookdump/colorito file.co
-echo '{ok:hello}' | npx github:hookdump/colorito
-
-git clone https://github.com/hookdump/colorito && node colorito/bin/colorito.mjs --demo
+npx github:hookdump/colorito --demo --open
+npx github:hookdump/colorito notes.co --open
+echo '@risk: exposure
+The exposure is real.' | npx github:hookdump/colorito --open
 ```
-
-## The markup
-
-All of markdown you'd expect — headings, lists, `**bold**`, `` `code` ``, `> quotes`,
-tables, `---` rules, fenced blocks (with `diff` fences colored red/green) — plus spans:
-
-```
-{ok:passing}  {warn:needs attention}  {bad:broken}
-{info:aside}  {muted:de-emphasized}   {accent:look here}
-{key:IDENT}   {path:src/app.js}       {cmd:npm test}   {num:17}
-
-{bold.red:combined}   {warn:nested {bad:spans} work}
-```
-
-Semantic names (`ok`, `warn`, `bad`, `info`, `note`, `muted`, `accent`, `key`, `path`,
-`cmd`, `num`, `str`) are preferred — restyling one name restyles every document. Raw color
-names work too: `red`, `green`, `yellow`, `orange`, `blue`, `cyan`, `teal`, `purple`,
-`magenta`, `pink`, `lime`, `gold`, `sky`, `rose`, `gray`, `white`. Modifiers: `bold`,
-`dim`, `italic`, `under`, `inv`, `strike`.
-
-Callout blocks:
-
-```
-:::warn Secrets in env vars
-Anyone with {cmd:lambda:GetFunctionConfiguration} reads them in {bad:plaintext}.
-:::
-```
-
-Types: `warn`, `bad`, `ok`, `info`, `note`, `tip`, `key`.
-
-`{...}` is only treated as a span when the name is a real style, so shell syntax passes
-through untouched — `${ssm:/prod/key}` and `${VAR:-default}` render as written. Escape a
-literal brace with `\{` if you need to force it. Unterminated spans print literally.
-
-## Options
 
 | Flag | Effect |
 | --- | --- |
-| `--width <n>` | Wrap width. Default: terminal width, capped at 100 |
-| `--no-color` | Plain text, structure preserved |
-| `--demo` | Print a sample document |
+| `--open` | open the rendered page in the default browser |
+| `--out <path>` | write here instead of a temp file |
+| `--title <text>` | page title (default: the first heading) |
+| `--demo` | render a sample document |
 
-`NO_COLOR=1` is honored ([no-color.org](https://no-color.org)). Color is otherwise forced
-**on** even without a TTY, because the output is captured by the agent host and replayed
-into a terminal — `isatty()` guesses wrong in exactly this situation.
+The command prints the path it wrote. Output is a single self-contained HTML file — inline
+CSS, no scripts, no remote assets — so it works offline and can be mailed as one file.
+
+## Concepts
+
+`@name: word, word` declares one. The name is automatically part of its own vocabulary.
+Colors come from a curated palette in declaration order, so you never pick them; pin one
+with `@name teal: ...` if you must (`azure`, `rose`, `teal`, `amber`, `violet`, `lime`,
+`orange`, `cyan`).
+
+Matching is case-insensitive and whole-word, longest phrase first, so `access key` beats
+`key`. Code spans, fenced blocks, headings and URLs are never highlighted — tinting an
+identifier inside code is noise.
+
+Wrap a passage that's wholly about one concept and it gets a tinted background and a colored
+edge in the same hue:
+
+```
+:::secrets Where they actually live
+Anyone with `lambda:GetFunctionConfiguration` reads them in plaintext.
+:::
+```
+
+An undeclared name renders as a neutral card. Everything else is ordinary markdown:
+headings, nested lists, bold, italic, code, strikethrough, blockquotes, rules, pipe tables,
+fenced blocks, links. The first `#` heading becomes the page title.
 
 ## On restraint
 
-The skill spends more words on when *not* to use color than on syntax, and that's
-deliberate. Color is a signal; signal only works when it's scarce. The rules it enforces:
-color must change what the reader understands, three hues per document, color words rather
-than sentences, most lines stay plain, structure before color.
+The skill spends more words on choosing concepts than on syntax, deliberately. Concepts are
+the recurring *nouns* a document is about — systems, actors, forces in tension — not
+"important" and "warning". Two to four, never more. Each must recur across paragraphs to
+earn a hue. Avoid vocabulary so common it hits every other line (`data`, `code`, `system`),
+because highlighting that appears constantly reads as decoration.
 
-A document where everything is colored reads exactly like a document where nothing is.
+A page where most words are tinted reads exactly like a page where none are.
 
 ## Limitations
 
-- Rendered output contains escape codes, so copy-paste carries them along.
-- Width is measured in code points; wide CJK glyphs and emoji may wrap a column early.
-- The markup is visible once as the command that produced it, then again rendered.
-- 256-color palette, chosen to survive tmux and to stay legible on light and dark themes.
+- Opens a local file, so it's a per-machine artifact, not a link you can share.
+- Vocabulary is literal: plurals and inflections need listing when they differ.
+- Whole-word matching uses `\b`-style lookarounds, so hyphenated forms need their own entry.
+- No syntax highlighting inside fenced blocks.
 
 ## Development
 
 ```bash
-npm test        # 18 subprocess tests, no dependencies
+npm test        # 26 subprocess tests, no dependencies
 npm run demo
 ```
+
+## History
+
+v1 rendered to ANSI for the terminal. It worked, and it was undeliverable: Claude Code
+collapses command output to "Ran 1 shell command", so the colors reached the model and never
+the user, and there's no TTY to write to directly. The browser is a channel that actually
+arrives. That story is in the git history.
 
 ## License
 

@@ -1,42 +1,46 @@
+@migration: migration, migrations, down step, rollback, 0042_drop_legacy_users
+@flags: flag, flags, feature flag, operational flag
+@ci: CI, pipeline, deploy, deployment, runner
+
 # Deploy review
 
-Three of the twelve checks need a decision before this ships. Everything else is
-{ok:clear}.
+Three of the twelve checks need a decision before this ships. The rest are clean.
 
-## Blockers
+The interesting finding isn't in the checks at all: most of what the pipeline treats as
+configuration is really operational flags, and flags are the things that actually change.
 
-:::bad Migration is not reversible
-`0042_drop_legacy_users.sql` has no down step. If the rollout is rolled back, the
-table is {bad:gone}. Add a down migration or gate it behind a second deploy.
+:::migration Not reversible
+`0042_drop_legacy_users.sql` has no down step. If the deploy is rolled back, the table is
+gone. Either add a down step or split it across two deploys.
 :::
 
-:::warn Config drift
-{num:10} of the {num:17} keys in the deploy secret are operational flags, not
-secrets. They live outside version control, so {muted:"who changed this, and
-when?"} has no answer.
+:::flags Outside version control
+Ten of the seventeen keys in the deploy bundle are operational flags rather than secrets.
+Nobody casually rotates a database URI, but people flip flags under pressure — and because
+they live outside git, there's no answer to "who changed this, and when?"
 :::
 
 ## Checks
 
 | Check | Result | Note |
 | --- | --- | --- |
-| unit tests | {ok:pass} | {muted:1,204 in 38s} |
-| integration | {ok:pass} | {muted:skipped 2 flaky} |
-| bundle size | {warn:+18%} | vendored a date library |
-| migration | {bad:fail} | no down step |
+| unit tests | pass | 1,204 in 38s |
+| integration | pass | 2 skipped as flaky |
+| bundle size | +18% | vendored a date library |
+| migration | fail | no down step |
 
-## What changed
+## What changed in CI
 
 ```diff
-+ flags moved into version control
 + OIDC role, branch-scoped
-- static access keys in CI
++ flags moved into version control
+- static access keys in the runner
 ```
 
 ## Suggested order
 
-1. Add the down migration — {muted:blocking, ~20 min}
-2. Split flags out of the secret — {muted:cheap, high value}
-3. Revisit the bundle after ship — {muted:not urgent}
+1. Add the down step — blocking, about twenty minutes.
+2. Split the flags out of the bundle — cheap, and it removes most of the drift.
+3. Revisit the bundle size after ship — not urgent.
 
-> Ship {num:1} and {num:2} together; {num:3} can wait a week.
+> Ship one and two together. Step one alone leaves the deploy worse than it started.

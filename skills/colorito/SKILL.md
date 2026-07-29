@@ -1,106 +1,112 @@
 ---
 name: colorito
 description: >-
-  Render an answer as colored, formatted terminal output instead of plain text. Use when the
-  user asks to "make that pretty", "colorize that", "show that with colors", "render that
-  nicely", or invokes /colorito — and when a dense answer (a comparison, a risk breakdown, a
-  status summary, a table of findings) would read faster with color carrying the meaning.
-  Never apply this automatically to ordinary replies; it is opt-in per response.
+  Render an answer as a styled HTML page and open it in the browser, with color assigned to
+  concepts rather than to emphasis. Use when the user asks to "make that pretty", "colorize
+  that", "render that nicely", "turn that into a page", or invokes /colorito — and for dense
+  material (audits, comparisons, risk breakdowns, research notes) where one idea recurs
+  across many paragraphs and the reader needs to track it. Opt-in per response; never apply
+  it to ordinary replies.
 ---
 
 # colorito
 
-Claude Code renders assistant text as markdown, which gives bold and italic but no color
-control. This skill routes the answer through a renderer instead: you write **Colorito
-markup**, pipe it to `colorito.mjs`, and the ANSI-colored result appears as command output
-in the user's terminal.
-
-## When to use it
-
-Only when asked, or when the user has said they want a stretch of work rendered this way.
-Good fits: risk breakdowns, before/after comparisons, checklists with pass/fail, tables of
-findings, anything where a reader needs to spot the important line at a glance.
-
-Bad fits: short answers, code-heavy answers (a fenced block already gets syntax highlighting
-in the normal renderer), and anything the user will copy-paste elsewhere — escape codes
-travel with the copied text.
-
-## How to render
-
-Pipe markup into the renderer with a heredoc. The `'CO'` must be quoted so the shell leaves
-`$`, backticks, and braces alone.
+Writes Colorito markup to a self-contained HTML page and opens it in the browser.
 
 ```bash
-node "<skill-directory>/colorito.mjs" <<'CO'
+node "<skill-directory>/colorito.mjs" --open <<'CO'
+@risk: risk, exposure, blast radius
 # Title
-Body with {ok:one} colored span.
+Body prose. Every mention of risk is tinted, everywhere, automatically.
 CO
 ```
 
-Substitute the base directory announced when this skill loaded. Options: `--width <n>` to
-force a wrap width, `--no-color` for plain text, `--demo` to print a sample document.
+Use the base directory announced when this skill loaded. The `'CO'` must be quoted so the
+shell leaves `$`, backticks and braces alone. The command prints the file path; the page
+opens on its own. Options: `--out <path>`, `--title <text>`, `--demo`.
 
-Two things to know before you use it:
+After rendering, **say almost nothing**. The page is the answer. One sentence at most —
+something the page doesn't already carry. Never summarize what you just rendered.
 
-- The markup is visible to the user once as the command, then again rendered. Keep it
-  compact — sprawling markup makes for an ugly tool call above a pretty result.
-- Don't restate the rendered content in your reply afterward. The output *is* the answer.
-  Add at most a sentence that the rendered version doesn't already carry.
+## Concept coloring — the whole point
 
-## The markup
+Most tools color *emphasis*: red for bad, green for good, bold for important. That decays
+fast, because emphasis is subjective and every writer applies it differently on every
+paragraph.
 
-Plain markdown works: `#`/`##`/`###` headings, `-` and `1.` lists, `**bold**`, `*italic*`,
-`` `code` ``, `~~strike~~`, `> quotes`, `---` rules, pipe tables, and fenced code blocks.
-A ` ```diff ` fence colors `+` lines green and `-` lines red.
-
-On top of that, spans: `{style:text}`.
-
-| Span | Use it for |
-| --- | --- |
-| `{ok:...}` | passing, safe, done, the good branch |
-| `{warn:...}` | needs attention, risky but not broken |
-| `{bad:...}` | failing, dangerous, the thing to fix |
-| `{info:...}` `{note:...}` | neutral asides |
-| `{muted:...}` | de-emphasis, counts, timestamps |
-| `{accent:...}` | the one phrase the eye should land on |
-| `{key:...}` `{path:...}` `{cmd:...}` `{num:...}` `{str:...}` | identifiers, file paths, commands, numbers, literals |
-
-Prefer these semantic names over raw colors (`red`, `green`, `cyan`, `orange`, `purple`,
-`sky`, `gold`, `lime`, `teal`, `pink`, `gray`…), which also work but don't restyle with the
-theme. Combine with dots — `{bold.red:critical}`, `{under.cyan:linked}`, `{dim:aside}` — and
-nest freely: `{warn:mostly fine, {bad:except this}}`.
-
-Callout blocks:
+colorito colors *concepts* instead. You declare the two to four ideas a document is actually
+about, along with the words that refer to each one. Every mention of those words is then
+tinted the same hue, everywhere on the page, with no further markup. The reader learns the
+mapping once from the legend and can then track an idea across ten paragraphs at a glance —
+which sections discuss it, where two concepts collide, which one dominates the argument.
 
 ```
-:::warn Secrets in env vars
-Anyone with {cmd:lambda:GetFunctionConfiguration} reads them in {bad:plaintext}.
+@secrets: secret, secrets, plaintext, credentials, MONGO_URI
+@flags: flag, flags, feature flag, sendOrSkipSms
+```
+
+Syntax is `@name: word, word, word`, one per line at the top of the document. The concept's
+own name is automatically part of its vocabulary — no need to repeat it. Colors are assigned
+from a curated palette in declaration order, so **never pick colors yourself**; the palette
+is designed to stay distinguishable and legible in both light and dark themes. Pin one only
+if you have a real reason: `@secrets rose: ...` (`azure`, `rose`, `teal`, `amber`, `violet`,
+`lime`, `orange`, `cyan`).
+
+Matching is case-insensitive and whole-word. Longer phrases win over shorter ones, so
+`access key` beats `key`. Code spans, fenced blocks, headings and URLs are never highlighted
+— tinting an identifier inside code adds noise rather than signal.
+
+### Concept blocks
+
+When a whole passage is about one concept, wrap it — it gets a tinted background and a
+colored edge in that concept's hue, which makes the page's structure visible while scrolling.
+
+```
+:::secrets Where they actually live
+Anyone with `lambda:GetFunctionConfiguration` reads them in plaintext.
 :::
 ```
 
-Types: `warn`, `bad`, `ok`, `info`, `note`, `tip`, `key`. The title is optional; omit it and
-the type's default label is used.
+The title is optional. `:::name` with an undeclared name renders as a neutral card, which is
+a fine way to set a passage apart without claiming it belongs to a concept.
 
-Only real style names are treated as spans, so shell syntax survives verbatim —
-`${ssm:/prod/key}` and `${VAR:-default}` need no escaping. Use `\{` to force a literal
-brace where you do want one.
+### Choosing concepts well
 
-## Restraint
+This is the judgment the skill exists for. Get it wrong and the page is confetti.
 
-This is the part that matters. Color is a signal, and signal only works if it's scarce.
+1. **Concepts are the nouns the document is about** — the recurring subjects, systems,
+   actors, or forces in tension. Not "important" and "warning". If you can't name it as a
+   thing, it isn't a concept.
+2. **Two to four. Never more.** A fifth hue means the distinctions have gone fuzzy and the
+   legend stops being learnable. Two is often better than four.
+3. **Earn it with recurrence.** A concept must appear across multiple paragraphs. Something
+   mentioned once gets no color; it isn't a thread the reader needs to follow.
+4. **Prefer tension.** Color is most useful when concepts interact — old system vs. new,
+   cost vs. benefit, what's secret vs. what merely looks it. A page where each concept sits
+   in its own section barely needs color at all.
+5. **Vocabulary means synonyms, not variants.** List the different words the document uses
+   for one idea, including identifiers and shorthand. Plurals and inflections need listing
+   only when they differ (`is`/`are` won't match from `be`).
+6. **Watch for greedy words.** Avoid vocabulary so common it hits every other line — `data`,
+   `code`, `system`, `time`. Highlighting that appears constantly reads as decoration, and
+   it drowns the concepts that matter.
 
-1. **Color must mean something.** If a span could be any color without changing the reader's
-   understanding, leave it plain.
-2. **Three colors per document, plus muted.** A fourth hue almost always means the semantic
-   distinctions have gone fuzzy.
-3. **Color words, not sentences.** Wrapping a whole paragraph in `{warn:...}` conveys nothing
-   and makes the text harder to read. Wrap the noun that's at risk.
-4. **Most lines stay plain.** If more than roughly a quarter of the visible text is colored,
-   nothing stands out. Plain text is the background that makes color legible.
-5. **Structure before color.** A heading, a table, or a list often does the work you were
-   about to do with a hue. Reach for color once the structure is right.
-6. **Never color for decoration.** No rainbow headings, no alternating hues, no coloring
-   something just because it's been a while since the last color.
+The failure mode is a page where most words are tinted: it reads exactly like a page where
+none are, and it costs the reader more to scan.
 
-The failure mode to avoid is a document where everything is colored, which reads exactly like
-a document where nothing is.
+## Markup
+
+Plain markdown: `#`/`##`/`###` headings, `-` and `1.` lists (nestable by two-space indent),
+`**bold**`, `*italic*`, `` `code` ``, `~~strike~~`, `> blockquote`, `---` rules, pipe tables,
+fenced code blocks with a language tag, and `[links](url)`. The first `#` heading becomes the
+page title and is not repeated in the body.
+
+Structure carries at least as much as color. A table, a heading, or a list frequently does
+the job you were about to do with a hue — reach for color once the structure is right.
+
+## When not to use it
+
+- Short answers. A page is heavier than the content justifies.
+- Code-heavy answers — nothing gets highlighted inside code anyway.
+- Anything the user wants to copy into a terminal, a commit message, or a chat.
+- Material with no recurring concepts. Without threads to trace, this is just a stylesheet.
